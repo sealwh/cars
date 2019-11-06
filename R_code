@@ -1,0 +1,288 @@
+# manufacturer 제조회사
+# type 차종
+# model 모델명
+# oprion 모델 옵션
+# disp  배기량
+# hp 최대출력
+# city_mpg 도심연비
+# high_mpg 고속도로연비
+# price 가격
+# fuel 연료
+# weight 공차중량
+# class 외형
+# origin 국산/수입
+
+# 패키지설치
+if (!require(dplyr)) install.packages("dplyr")   # 데이터처리용 
+if (!require(corrplot)) install.packages("corrplot")   # 상관분석
+if (!require(ggplot2)) install.packages("ggplot2") # ggplot 데이터 시각화 패키지
+if (!require(clValid)) install.packages("clValid") # 클러스터 분석 패키지
+if (!require(NbClust)) install.packages("NbClust") # 군집분석 중심의 갯수 정하기 편한 패키지
+if (!require(fmsb)) install.packages("fmsb") # 레이더 차트 패키지
+if (!require(doBy)) install.packages("doBy") # 요약 By 패키지
+
+# 데이터 불러오기
+cars2019 = read.csv("cars2019.csv")
+
+# factor -> character
+str(cars2019)
+cars2019$model <- as.character(cars2019$model)
+cars2019$option <- as.character(cars2019$option)
+str(cars2019)
+
+# NA 제거
+cars2019 <- na.omit(cars2019)
+
+# LPG 제거
+cars2019 <- cars2019[-grep("LPG",cars2019$fuel),]
+str(cars2019)
+
+plot(cars2019[,c(-3,-4)])
+
+# 상관행렬
+cordata <- cor(cars2019[,c(5,6,7,8,9,11)])
+corrplot(cordata,type = "upper",diag=FALSE,addCoef.col = "black", tl.srt= 0)
+
+#####################################
+###문제작성 및 정답 만들기(20문항)###
+#####################################
+
+## 데이터 자료구조 확인
+# Q1. cars2019 데이터의 자료구조를 확인하시오.
+
+# 답
+str(cars2019)
+
+## 특정 문자가 포함된 행 추출하기 (grep 또는 filter 등 사용)
+# Q2. 기아자동차와 현대자동차의 도심연비 평균을 비교해보시오.
+
+# 답  기아 11.68  현대 12.05
+gia <- cars2019[grep("기아자동차",cars2019$manufacturer),]
+hyundai <- cars2019[grep("현대자동차",cars2019$manufacturer),]
+mean(gia$city_mpg)
+mean(hyundai$city_mpg)
+# 해석 : 현대 자동차의 평균도심연비가 기아자동차보다 높게 나왔다.
+
+# Q3. 국산 차 중에 가솔린이고 준대형인 세단을 추출하시오.
+
+# 답
+cars2019 %>%
+  filter(origin=="kor" & fuel == "가솔린" & type == "준대형" & class == "세단")
+# 답2
+subset(cars2019,origin=="kor" & fuel == "가솔린" & type == "준대형" & class == "세단")
+# 해석 : 해당 모델은 K7, SM7, 그랜저, G80 스포츠, G80 가 있다.
+
+## 요인의 수준별로 함수 명령어를 동시 적용
+# Q4. 차량 type 별 도심연비 평균과 편차를 구하시오.
+with(cars2019, tapply(city_mpg, type, mean))
+with(cars2019, tapply(city_mpg, type, sd))
+# 해석 : 준중형, 소형, 중형, 준대형, 대형 순으로 도심연비가 높다.
+
+## 상관분석
+# Q5. 수치형 변수의 산점도, 상관계수를 그리시오.
+
+# 답
+# 산점도
+plot(cars2019[,c(5,6,7,8,9,11)])
+# 상관계수
+cordata <- cor(cars2019[,c(5,6,7,8,9,11)])
+corrplot(cordata,method = "color",type = "upper",diag=FALSE,addCoef.col = "black", tl.srt= 0)
+
+# 답2
+if (!require(PerformanceAnalytics)) install.packages("PerformanceAnalytics") # PerformanceAnalytics 패키지
+# chart.Correlation() 함수를 사용시 한꺼번에 각 변수의 히스토그램, 변수들 간의 산점도와 상관계수를 그려볼 수 있다.
+chart.Correlation(cars2019[,c(5,6,7,8,9,11)], histogram=TRUE, col="grey10", pch=1)
+
+# 참고
+# 일반적으로 r이
+# -1.0과 -0.7 사이이면, 강한 음적 선형관계,
+# -0.7과 -0.3 사이이면, 뚜렷한 음적 선형관계,
+# -0.3과 -0.1 사이이면, 약한 음적 선형관계,
+# -0.1과 +0.1 사이이면, 거의 무시될 수 있는 선형관계,
+# +0.1과 +0.3 사이이면, 약한 양적 선형관계,
+# +0.3과 +0.7 사이이면, 뚜렷한 양적 선형관계,
+# +0.7과 +1.0 사이이면, 강한 양적 선형관계
+# 로 해석
+
+
+## ggplot 상자그림
+# Q6. "소형","준중형","중형","준대형","대형" 순으로 상자그림을 그리시오.
+levels(cars2019$type) #수준확인
+ggplot(cars2019, aes(x=type, y=high_mpg)) +
+  geom_boxplot() +
+  theme_bw() + # 배경색 하얗게
+  theme(axis.text.x=element_text(angle=45, hjust=1))+ #x축 라벨의 기울기를 45도 각도로
+  scale_x_discrete(limits=c("소형","준중형","중형","준대형","대형"))+
+  ggtitle("type별 고속도로 연비 상자그림")
+
+
+## 정규성 검정
+# Q7. 각각의 수치형 자료의 QQPlot을 그려서 확인하시오.
+par(mfrow=c(2,3))
+chart.QQPlot(cars2019$disp, main = "disp")
+chart.QQPlot(cars2019$hp, main ="hp")
+chart.QQPlot(cars2019$city_mpg, main = "city_mpg")
+chart.QQPlot(cars2019$high_mpg, main ="high_mpg")
+chart.QQPlot(cars2019$price, main ="price")
+chart.QQPlot(cars2019$weight, main = "weight")
+par(mfrow=c(1,1))
+# 해석 : weight를 제외하고 정규성을 만족하지 못 하는 것으로 판단되며,
+#        weight는 검정을 통하여 확인해봐야할 것같다.
+
+# Q8. 각각의 수치형 자료에 대하여 Shapiro-wilk 검정을 통하여 정규성을 만족하는지 확인하시오.
+shapiro.test(cars2019$disp)
+shapiro.test(cars2019$hp)
+shapiro.test(cars2019$city_mpg)
+shapiro.test(cars2019$high_mpg)
+shapiro.test(cars2019$price)
+shapiro.test(cars2019$weight)
+# 해석 : Shapiro-wilk 검정 결과, 정규성을 만족하지 못 한다.
+
+# Q9. 후진소거법을 이용하여 disp, hp, city_mpg, high_mpg, weight 중 price에 영향을 끼치는 변수를 판단하시오.
+str(cars2019)
+attach(cars2019)
+summary(lm(price~disp+ hp+ city_mpg+ high_mpg+ weight))
+cars2019_lm<-lm(price~disp+ hp+ city_mpg+ high_mpg+ weight)
+step(cars2019_lm,direction = "backward")
+detach(cars2019)
+# 해석 : hp, city_mpg, weight가 price에 영향을 주는 요인으로 나왔다.
+
+# Q10. 공차중량과 도시연비에 대한 산포도에 선형회귀선과 비모수회귀선을
+#      적합시키시오.(신뢰구간 95%)
+ggplot(data=cars2019, aes(x=weight, y=city_mpg)) + 
+  geom_point() + 
+  stat_smooth(method=lm, level=0.95)
+
+ggplot(data=cars2019, aes(x=weight, y=city_mpg)) + 
+  geom_point() + 
+  stat_smooth(method=loess, level=0.95)
+# 해석 : 공차중량과 도시연비는 반비례관계에 있는것으로 추정된다.
+
+
+# Q11. 도심연비와 고속도로 연비를 더해 2로 나누어 새로운 변수 복합연비(total)를 만들고
+#     total을 기준으로 연비등급을 부여하여 빈도 막대 그래프를 그리시오.
+#     연비등급(2019년 기준 1등급 16이상, 2등급 15.9 ~ 13.8
+#              3등급 13.7~11.6, 4등급 11.5~9.4, 5등급 9.3이하)
+cars2019$total <- cars2019$city_mpg*0.55 + cars2019$high_mpg*0.45
+cars2019$grade <- ifelse(cars2019$total >= 16, "1등급",
+                      ifelse(cars2019$total >= 13.8, "2등급",
+                             ifelse(cars2019$total >= 11.6, "3등급",
+                                    ifelse(cars2019$total >= 9.4, "4등급","5등급"))))
+table(cars2019$grade)  # 등급 빈도표 생성
+qplot(cars2019$grade)  # 등급 빈도 막대 그래프
+
+# 해석 : 연비가 1등급인 차가 많지 않으며, 3,4등급의 차가 많다.
+
+# Q12. price와 disp의 plot그래프에 연비등급으로 색을 주어서 그리시오.
+ggplot(data=cars2019, aes(x=price, y=disp, colour=grade)) + 
+  geom_point()
+
+# 해석 : 연비 5등급이 배기량과 가격이 높은것으로 나왔으며
+#        2등급 차량이 배기량이 적다.
+
+# Q13. 복합연비 등급으로 집단을 나누어서 weight,hp plot을 그려라.
+
+ggplot(cars2019, aes(x=hp, y=weight)) +
+  geom_point() +
+  facet_grid(grade ~. )
+# 해석 : 복합연비 등급이 높을 수록 hp가 높다.
+
+# Q14. 어느 회사 자동차의 hp가 가장 높은지 알아보고 hp 평균이 높은 회사 3곳을 출력하여라.
+cars2019 %>%
+  group_by(manufacturer) %>%
+  summarise(mean_hp = mean(hp)) %>%
+  arrange(desc(mean_hp)) %>%
+  head(3)
+
+# 해석 : 캐딜락, 마세라티, 랜드로버의 차량이 hp가 높게 나왔다.
+
+# Q15. hp에 대한 상자그림을 그리고 이상치를 표시하여라.
+hp_box <- boxplot(cars2019$hp,horizontal=TRUE) #horizontal=TRUE 가로로 그리기
+text(hp_box$out, rep(1, NROW(hp_box$out)), labels=hp_box$out, pos=c(1,1,1,3,1,1,1))
+# y의 자표를 rep(1, NROW(hp_box$out))을 사용
+# 해석 : 이상치는 총 7개 나왔다.
+
+
+# Q16. cars2019 데이터를 이용하여 K-means 클러스터링(비지도 학습)을 하여라.
+set.seed(123)
+cluster_data <- scale(cars2019[,c(5,6,7,8,9,11)],center = TRUE, scale = TRUE)
+cluster_clValid <- clValid(cluster_data, 2:10, clMethods ="kmeans", validation = "internal",maxitems=nrow(cluster_data))
+summary(cluster_clValid) #각 index별로 최적의 클러스터를 출력
+
+cluster_kmc <- kmeans(cluster_data,6)
+plot(cluster_data, col = cluster_kmc$cluster)
+#해석 : 비지도학습으로 군집을 6개 두었을 때의 그래프이다.
+
+# Q17. NbClust 함수를 사용하여 몇개의 군집 중심이 적당한지 결정하여라.
+nc <- NbClust(cluster_data, min.nc = 2, max.nc = 15, method = "kmeans")
+
+par(mfrow=c(1,1))
+barplot(table(nc$Best.n[1,]),
+        xlab="Numer of Clusters", ylab="Number of Criteria",
+        main="Number of Clusters Chosen")
+
+cluster_kmc <- kmeans(cluster_data,2)
+plot(cluster_data, col = cluster_kmc$cluster)
+# 해석 : cars2019데이터는 2개의 군집으로 구분하는 것이 좋다.
+#        plot은 군집을 2개로 두었을 때의 그래프이다.
+
+# Q18. cars2019 데이터를 이용하여 Hierarchical 클러스터링(계층화)을 하여라.
+hc <- hclust(dist(cars2019[,c(5,6,7,8,9,11)]), method="ave")
+plot(hc, hang=-1, labels=cars2019$model)
+rect.hclust(hc, k=3)  
+
+# 그려진 모양에 맞춰서 빨간색으로 클러스터를 표현하였다.
+# 분류 시 2개 혹은 3개로 분류하는것이 좋아보인다.
+
+## 다변량데이터 비교
+# Q19. class별 disp, hp, total(2019년 기준 복합연비), price, weight 변수로 레이더 차트를 그려라
+mean_by_class <-summaryBy (disp + hp  + total + price + weight ~ class,data = cars2019,FUN = c (mean))
+df_radarchart <- function (df){
+  df <- data.frame (df)
+  dfmax <-apply (df, 2, max)
+  dfmin <-apply (df, 2, min)
+  as.data.frame(rbind (dfmax, dfmin, df))
+  }
+mean_by_class_trans <- df_radarchart (scale (mean_by_class [, c (2 : 6)]))
+
+names(mean_by_class_trans)<-c("배기량","최대출력","연비","가격","공차중량")
+
+radarchart (df = mean_by_class_trans, # 레이더 차트를 그리는 데 사용되는 데이터 프레임
+            seg = 6, # 각 축의 세그먼트 수 
+            pty = 16, # 포인트 심볼을 지정하는 벡터 : 기본값 16 (닫힌 원)
+            pcol = 1 : 6, # 플롯 데이터의 색상 코드 벡터
+            plty = 1 : 6, # 플롯 데이터의 라인 유형 벡터
+            plwd = 2, # 플롯 데이터의 라인 폭 벡터
+            title = c ( "자동차 유형별 레이더 차트") # 상단에 제목
+            )
+# legend 추가
+legend ( "topleft", legend = mean_by_class$class, col = c (1 : 2), lty = c (1 : 2), lwd = 2)
+
+# 해석 : 세단이 SUV보다 배기량과 최대출력, 복합연비, 가격이 높게 나왔으며
+#        공차중량이 작게 나왔다.
+
+
+# Q20. type별 disp, hp, total(2019년 기준 복합연비), price, weight 변수로 레이더 차트를 그려라
+mean_by_type <-summaryBy (disp + hp  + total + price + weight ~ type,data = cars2019,FUN = c (mean))
+df_radarchart <- function (df){
+  df <- data.frame (df)
+  dfmax <-apply (df, 2, max)
+  dfmin <-apply (df, 2, min)
+  as.data.frame(rbind (dfmax, dfmin, df))
+}
+mean_by_type_trans <- df_radarchart (scale (mean_by_type [, c (2 : 6)]))
+
+names(mean_by_type_trans)<-c("배기량","최대출력","연비","가격","공차중량")
+
+radarchart (df = mean_by_type_trans, # 레이더 차트를 그리는 데 사용되는 데이터 프레임
+            seg = 6, # 각 축의 세그먼트 수 
+            pty = 16, # 포인트 심볼을 지정하는 벡터 : 기본값 16 (닫힌 원)
+            pcol = 1 : 6, # 플롯 데이터의 색상 코드 벡터
+            plty = 1 : 6, # 플롯 데이터의 라인 유형 벡터
+            plwd = 2, # 플롯 데이터의 라인 폭 벡터
+            title = c ( "자동차 타입별 레이더 차트") # 상단에 제목
+)
+# legend 추가
+legend ( 1.3,1, legend = mean_by_type$type, col = c (1 : 5), lty = c (1 : 5), lwd = 2)
+
+# 해석 : 차가 클수록 배기량과 공차중량, 가격, 최대출력이 크고 연비가 작다
